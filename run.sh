@@ -11,49 +11,59 @@ WORKING_DIR=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
 ANDROID_DIR=$WORKING_DIR/android/app
 IOS_DIR=$WORKING_DIR/ios/Runner
 
-# set new package name
-read -p "new package(ex. com.example.helloworld): " NEW_PACKAGE
+# set package name
+OLD_PACKAGE="com.example.helloworld"
+NEW_PACKAGE="com.example.helloworld2"
 
-IFS="." read -ra package_name_to_array <<< "$NEW_PACKAGE"
-P_LEN="${#package_name_to_array[@]}"
-echo "new package to array length: $P_LEN"
+# set new package name to path
+IFS="." read -ra new_package_name_to_array <<< "$NEW_PACKAGE"
+AFTER_PACKAGE_PATH=$ANDROID_DIR/src/main/kotlin/${new_package_name_to_array[0]}/${new_package_name_to_array[1]}/${new_package_name_to_array[2]}
+echo "after package path: ${AFTER_PACKAGE_PATH}"
 
-if [ "$P_LEN" == 3 ]; then
-    AFTER_PACKAGE_PATH=$ANDROID_DIR/src/main/kotlin/${package_name_to_array[0]}/${package_name_to_array[1]}/${package_name_to_array[2]}
-    echo "after package path: ${AFTER_PACKAGE_PATH}"
-else 
-    echo "package name is invalid"
-    exit 1
+# set before package name to path
+IFS="." read -ra old_package_name_to_array <<< "$OLD_PACKAGE"
+BEFORE_PACKAGE_PATH=$ANDROID_DIR/src/main/kotlin/${old_package_name_to_array[0]}/${old_package_name_to_array[1]}/${old_package_name_to_array[2]}
+echo "before package path: ${BEFORE_PACKAGE_PATH}"
+
+## android ##
+# 1. change Android application id
+echo "change Android application id"
+find $ANDROID_DIR/build.gradle -type f -exec sed -i "" "s/$OLD_PACKAGE/$NEW_PACKAGE/g" {} +
+
+# 2. change AndroidManifest package
+echo "change AndroidManifest package"
+find $ANDROID_DIR/src/main/AndroidManifest.xml -type f -exec sed -i "" "s/$OLD_PACKAGE/$NEW_PACKAGE/g" {} +
+find $ANDROID_DIR/src/debug/AndroidManifest.xml -type f -exec sed -i "" "s/$OLD_PACKAGE/$NEW_PACKAGE/g" {} +
+find $ANDROID_DIR/src/profile/AndroidManifest.xml -type f -exec sed -i "" "s/$OLD_PACKAGE/$NEW_PACKAGE/g" {} +
+
+# 3. change Android MainActivity.kt package
+echo "change Android MainActivity.kt package"
+find $BEFORE_PACKAGE_PATH/MainActivity.kt -type f -exec sed -i "" "s/$OLD_PACKAGE/$NEW_PACKAGE/g" {} +
+
+# 4. change Android folder structure
+echo "change Android folder structure"
+if [ "${old_package_name_to_array[0]}" != "${new_package_name_to_array[0]}" ]; 
+then
+    mv $ANDROID_DIR/src/main/kotlin/${old_package_name_to_array[0]} $ANDROID_DIR/src/main/kotlin/${new_package_name_to_array[0]}
 fi
 
-# set before package name
-ANDROID_BUILD_GRADLE_PATH="$ANDROID_DIR/build.gradle"
+if [ "${old_package_name_to_array[1]}" != "${new_package_name_to_array[1]}" ]; 
+then
+    mv $ANDROID_DIR/src/main/kotlin/${old_package_name_to_array[0]}/${old_package_name_to_array[1]} $ANDROID_DIR/src/main/kotlin/${new_package_name_to_array[0]}/${new_package_name_to_array[1]}
+fi
 
-# line number
-# grep -n applicationId $ANDROID_BUILD_GRADLE_PATH | cut -d: -f1 | head -1 | 
-# echo $TEMP_LINE
-# sed -n '/applicationId/p' $ANDROID_BUILD_GRADLE_PATH
-# sed -i '/applicationId/s/g' $ANDROID_BUILD_GRADLE_PATH
-# sed '/applicationId/' $ANDROID_BUILD_GRADLE_PATH 
+if [ "${old_package_name_to_array[2]}" != "${new_package_name_to_array[2]}" ];
+then
+    mv $BEFORE_PACKAGE_PATH $AFTER_PACKAGE_PATH
+fi
 
-# android
-# 1. change application id
-# cat $ANDROID_DIR/build.gradle
 
-# 2. change package and label
-# cat $ANDROID_DIR/src/main/AndroidManifest.xml
-# cat $ANDROID_DIR/src/debug/AndroidManifest.xml
-# cat $ANDROID_DIR/src/profile/AndroidManifest.xml
-
-# 3. change MainActivity.kt package
-# cat $ANDROID_DIR/src/main/kotlin/$BEFORE_PACKAGE_PATH/MainActivity.kt
-
-# 4. change folder structure
-# cat $ANDROID_DIR/src/main/kotlin/$AFTER_PACKAGE_PATH/MainActivity.kt
-
-# ios
+## ios ##
 # 5. change Info.plist CFBundleIdentifier
-# cat $IOS_DIR/Info.plist
+echo "change ios Info.plist CFBundleIdentifier"
+find $IOS_DIR/Info.plist -type f -exec sed -i "" "s/$OLD_PACKAGE/$NEW_PACKAGE/g" {} +
 
+## flutter ##
 # 6. flutter clean
-# flutter clean
+echo "run command 'flutter clean'"
+flutter clean
